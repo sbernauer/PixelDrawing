@@ -3,7 +3,7 @@
 *.elf
 *.so
 .gdb_history
-pixeldrawing
+pixeldraw
 *.data
 *.s
 *.old

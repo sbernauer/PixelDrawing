@@ -13,16 +13,16 @@ DEPFLAGS_CC = `pkg-config --cflags $(DEPS)`
 DEPFLAGS_LD = `pkg-config --libs $(DEPS)` -lpthread -lnuma
 OBJS = ring.o llist.o framebuffer.o sdl.o vnc.o network.o main.o workqueue.o frontend.o pen.o
 
-all: pixeldrawing
+all: pixeldraw
 
 %.o : %.c
 	$(CC) -c $(CCFLAGS) $(DEPFLAGS_CC) $< -o $@
 
-pixeldrawing: $(OBJS)
-	$(CC) $(CCFLAGS) $^ $(DEPFLAGS_LD) -o pixeldrawing
+pixeldraw: $(OBJS)
+	$(CC) $(CCFLAGS) $^ $(DEPFLAGS_LD) -o pixeldraw
 
 clean:
 	$(RM) $(OBJS)
-	$(RM) pixeldrawing
+	$(RM) pixeldraw
 
 .PHONY: all clean

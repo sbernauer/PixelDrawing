@@ -47,7 +47,7 @@ int sdl_alloc(struct frontend** ret, struct fb* fb, void* priv) {
 
 	SDL_ShowCursor(0);
 
-	sdl->window = SDL_CreateWindow("shoreline",
+	sdl->window = SDL_CreateWindow("pixeldraw",
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, size->width,
 		size->height, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
