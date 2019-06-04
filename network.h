@@ -19,6 +19,7 @@ struct net;
 
 struct net_threadargs {
 	struct net* net;
+	struct pen* pens;
 };
 
 struct net_thread {
@@ -47,6 +48,7 @@ struct net {
 struct net_connection_threadargs {
 	struct net* net;
 	int socket;
+	struct pen* pens;
 };
 
 struct net_connection_thread {
@@ -65,6 +67,6 @@ void net_free(struct net* net);
 
 
 void net_shutdown(struct net* net);
-int net_listen(struct net* net, unsigned int num_threads, struct sockaddr_storage* addr, size_t addr_len);
+int net_listen(struct net* net, unsigned int num_threads, struct sockaddr_storage* addr, size_t addr_len, struct pen* pens);
 
 #endif

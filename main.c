@@ -22,7 +22,7 @@
 #include "util.h"
 #include "frontend.h"
 #include "workqueue.h"
-
+#include "pen.h"
 
 #define PORT_DEFAULT "1234"
 #define LISTEN_DEFAULT "::"
@@ -163,6 +163,8 @@ int main(int argc, char** argv) {
 
 	struct timespec before, after, fpsSnapshot;
 	long long time_delta, time_delta_since_last_fps_snapshot;
+
+	struct pen pens[COUNT_PENS];
 
 	while((opt = getopt(argc, argv, "p:b:w:h:r:s:l:f:d?")) != -1) {
 		switch(opt) {
@@ -322,9 +324,22 @@ int main(int argc, char** argv) {
 	inaddr = (struct sockaddr_storage*)addr_list->ai_addr;
 	addr_len = addr_list->ai_addrlen;
 
-	if((err = net_listen(net, listen_threads, inaddr, addr_len))) {
+	if((err = net_listen(net, listen_threads, inaddr, addr_len, pens))) {
 		fprintf(stderr, "Failed to start listening: %d => %s\n", err, strerror(-err));
 		goto fail_addrinfo;
+	}
+
+	srand(time(NULL));
+	for(int i = 0; i < COUNT_PENS; i++) {
+		struct pen* pen = malloc(sizeof(struct pen));
+		pen->x = rand() % width;
+		pen->y = rand() % height;
+		pen->color.red = rand() % 255;
+		pen->color.green = rand() % 255;
+		pen->color.blue = rand() % 255;
+
+		pens[i] = *pen;
+		fprintf(stderr, "Created pen with x = %d, y = %d\n", pens[i].x, pens[i].y);
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &fpsSnapshot);

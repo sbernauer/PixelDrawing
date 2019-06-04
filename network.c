@@ -21,6 +21,7 @@
 #include "framebuffer.h"
 #include "llist.h"
 #include "util.h"
+#include "pen.h"
 
 #define CONNECTION_QUEUE_SIZE 16
 #define THREAD_NAME_MAX 16
@@ -240,6 +241,7 @@ static void* net_connection_thread(void* args) {
 	struct net_connection_threadargs* threadargs = args;
 	int err, socket = threadargs->socket;
 	struct net* net = threadargs->net;
+	struct pen* pens = threadargs->pens;
 	struct net_connection_thread* thread =
 		container_of(threadargs, struct net_connection_thread, threadargs);
 
@@ -247,7 +249,7 @@ static void* net_connection_thread(void* args) {
 	struct fb* fb;
 	struct fb_size* fbsize;
 	union fb_pixel pixel;
-	unsigned int x, y;
+	unsigned int x, y, id;
 
 	off_t offset;
 	ssize_t read_len;
@@ -318,7 +320,31 @@ recv:
 		while(ring_any_available(ring)) {
 			last_cmd = ring->ptr_read;
 
-			if(!ring_memcmp(ring, "PX", strlen("PX"), NULL)) {
+			if(!ring_memcmp(ring, "PEN", strlen("PEN"), NULL)) {
+				if((err = net_skip_whitespace(ring)) < 0) {
+					fprintf(stderr, "No whitespace after PEN cmd\n");
+					goto recv_more;
+				}
+				if((offset = net_next_whitespace(ring)) < 0) {
+					fprintf(stderr, "No more whitespace found, missing id\n");
+					goto recv_more;
+				}
+				id = net_str_to_uint32_10(ring, offset);
+				if((err = net_skip_whitespace(ring)) < 0) {
+					fprintf(stderr, "No whitespace after id\n");
+					goto recv_more;
+				}
+				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
+					// Get coordiates
+					if((int)id < COUNT_PENS && (int)id > -1) {
+						if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
+							id, pens[id].x, pens[id].y)) < 0) {
+							fprintf(stderr, "Failed to write out pen coordinate: %d => %s\n", err, strerror(-err));
+							goto fail_ring;
+						}
+					}
+				}
+			} else if(!ring_memcmp(ring, "PX", strlen("PX"), NULL)) {
 				if((err = net_skip_whitespace(ring)) < 0) {
 //					fprintf(stderr, "No whitespace after PX cmd\n");
 					goto recv_more;
@@ -456,6 +482,7 @@ static void* net_listen_thread(void* args) {
 		llist_entry_init(&conn_thread->list);
 		conn_thread->threadargs.socket = socket;
 		conn_thread->threadargs.net = net;
+		conn_thread->threadargs.pens = threadargs->pens;
 
 		if((err = -pthread_create(&conn_thread->thread, NULL, net_connection_thread, &conn_thread->threadargs))) {
 			fprintf(stderr, "Failed to create thread: %d => %s\n", err, strerror(-err));
@@ -479,7 +506,7 @@ fail:
 
 }
 
-int net_listen(struct net* net, unsigned int num_threads, struct sockaddr_storage* addr, size_t addr_len) {
+int net_listen(struct net* net, unsigned int num_threads, struct sockaddr_storage* addr, size_t addr_len, struct pen* pens) {
 	int err = 0, i;
 	char threadname[THREAD_NAME_MAX];
 	char host_tmp[NI_MAXHOST], port_tmp[NI_MAXSERV];
@@ -524,6 +551,7 @@ int net_listen(struct net* net, unsigned int num_threads, struct sockaddr_storag
 
 	for(i = 0; i < num_threads; i++) {
 		net->threads[i].threadargs.net = net;
+		net->threads[i].threadargs.pens = pens;
 	}
 
 	// Setup pthreads (using net->num_threads as a counter might come back to bite me)
