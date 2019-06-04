@@ -320,7 +320,67 @@ recv:
 		while(ring_any_available(ring)) {
 			last_cmd = ring->ptr_read;
 
-			if(!ring_memcmp(ring, "PEN", strlen("PEN"), NULL)) {
+			if(!ring_memcmp(ring, "MOVE", strlen("MOVE"), NULL)) {
+				if((err = net_skip_whitespace(ring)) < 0) {
+					fprintf(stderr, "No whitespace after MOVE cmd\n");
+					goto recv_more;
+				}
+				if((offset = net_next_whitespace(ring)) < 0) {
+					fprintf(stderr, "No more whitespace found, missing id\n");
+					goto recv_more;
+				}
+				id = net_str_to_uint32_10(ring, offset);
+				if((err = net_skip_whitespace(ring)) < 0) {
+					fprintf(stderr, "No whitespace after id\n");
+					goto recv_more;
+				}
+				if((offset = net_next_whitespace(ring)) < 0) {
+					fprintf(stderr, "No more whitespace found, missing x coordinate\n");
+					goto recv_more;
+				}
+				x = net_str_to_uint32_10(ring, offset);
+				if((err = net_skip_whitespace(ring)) < 0) {
+					fprintf(stderr, "No whitespace after x coordinate\n");
+					goto recv_more;
+				}
+				if((offset = net_next_whitespace(ring)) < 0) {
+					fprintf(stderr, "No more whitespace found, missing y coordinate\n");
+					goto recv_more;
+				}
+				y = net_str_to_uint32_10(ring, offset);
+				if((err = net_skip_whitespace(ring)) < 0) {
+					fprintf(stderr, "No whitespace after y coordinate\n");
+					goto recv_more;
+				}
+				if((offset = net_next_whitespace(ring)) < 0) {
+					fprintf(stderr, "No more whitespace found, missing color\n");
+					goto recv_more;
+				}
+				pixel.abgr = net_str_to_uint32_16(ring, offset) << 8;
+				pixel.color.alpha = 0xFF;
+				fprintf(stderr, "Parsed color to %u\n", pixel.abgr);
+				if((err = net_skip_whitespace(ring)) < 0) {
+					fprintf(stderr, "No whitespace after id\n");
+					goto recv_more;
+				}
+				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
+					// Move pen with id to x and y
+					if((int)id < COUNT_PENS && (int)id > -1 && (int)x > -2 && (int)x < 2 && (int)y > -2 && (int)y < 2) {
+						fprintf(stderr, "Moving pen %u to %u, %u\n", id, x, y);
+						fprintf(stderr, "Set pixel %u, %uto %u", pens[id].x, pens[id].y, pixel.abgr);
+						fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
+						pens[id].x += x;
+						pens[id].y += y;
+						if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
+							id, pens[id].x, pens[id].y)) < 0) {
+							fprintf(stderr, "Failed to write out pen movement: %d => %s\n", err, strerror(-err));
+							goto fail_ring;
+						}
+					} else {
+						fprintf(stderr, "INVALID\n");
+					}
+				}
+			} else if(!ring_memcmp(ring, "PEN", strlen("PEN"), NULL)) {
 				if((err = net_skip_whitespace(ring)) < 0) {
 					fprintf(stderr, "No whitespace after PEN cmd\n");
 					goto recv_more;
@@ -344,55 +404,17 @@ recv:
 						}
 					}
 				}
-			} else if(!ring_memcmp(ring, "PX", strlen("PX"), NULL)) {
+			} else if(!ring_memcmp(ring, "PENS", strlen("PENS"), NULL)) {
 				if((err = net_skip_whitespace(ring)) < 0) {
-//					fprintf(stderr, "No whitespace after PX cmd\n");
-					goto recv_more;
-				}
-				if((offset = net_next_whitespace(ring)) < 0) {
-//					fprintf(stderr, "No more whitespace found, missing X\n");
-					goto recv_more;
-				}
-				x = net_str_to_uint32_10(ring, offset);
-				if((err = net_skip_whitespace(ring)) < 0) {
-//					fprintf(stderr, "No whitespace after X coordinate\n");
-					goto recv_more;
-				}
-				if((offset = net_next_whitespace(ring)) < 0) {
-//					fprintf(stderr, "No more whitespace found, missing Y\n");
-					goto recv_more;
-				}
-				y = net_str_to_uint32_10(ring, offset);
-				if((err = net_skip_whitespace(ring)) < 0) {
-//					fprintf(stderr, "No whitespace after Y coordinate\n");
+					fprintf(stderr, "No whitespace after command PENS\n");
 					goto recv_more;
 				}
 				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
-					// Get pixel
-					if(x < fbsize->width && y < fbsize->height) {
-						if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PX %u %u %08x\n",
-							x, y, fb_get_pixel(net->fb, x, y).abgr)) < 0) {
-							fprintf(stderr, "Failed to write out pixel value: %d => %s\n", err, strerror(-err));
-							goto fail_ring;
-						}
-					}
-				} else {
-					// Set pixel
-					if((offset = net_next_whitespace(ring)) < 0) {
-//						fprintf(stderr, "No more whitespace found, missing color\n");
-						goto recv_more;
-					}
-					if(offset > 6) {
-						pixel.abgr = net_str_to_uint32_16(ring, offset);
-					} else {
-						pixel.abgr = net_str_to_uint32_16(ring, offset) << 8;
-						pixel.color.alpha = 0xFF;
-					}
-//					printf("Got pixel command: PX %u %u %06x\n", x, y, pixel.rgba);
-					if(x < fbsize->width && y < fbsize->height) {
-						fb_set_pixel(fb, x, y, &pixel);
-					} else {
-//						printf("Got pixel outside screen area: %u, %u outside %u, %u\n", x, y, fbsize->width, fbsize->height);
+					// Get count of pens
+					if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PENS %u\n",
+						COUNT_PENS)) < 0) {
+						fprintf(stderr, "Failed to write out count of pens: %d => %s\n", err, strerror(-err));
+						goto fail_ring;
 					}
 				}
 			} else if(!ring_memcmp(ring, "SIZE", strlen("SIZE"), NULL)) {
