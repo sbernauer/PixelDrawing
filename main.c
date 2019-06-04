@@ -334,13 +334,10 @@ int main(int argc, char** argv) {
 		struct pen* pen = malloc(sizeof(struct pen));
 		pen->x = rand() % width;
 		pen->y = rand() % height;
-		pen->color.red = rand() % 255;
-		pen->color.green = rand() % 255;
-		pen->color.blue = rand() % 255;
 
 		pens[i] = *pen;
-		fprintf(stderr, "Created pen with x = %d, y = %d\n", pens[i].x, pens[i].y);
 	}
+	fprintf(stderr, "Created %u pens\n", COUNT_PENS);
 
 	clock_gettime(CLOCK_MONOTONIC, &fpsSnapshot);
 	while(!do_exit) {
