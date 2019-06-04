@@ -20,4 +20,7 @@ struct pen {
 	struct pen_color color;
 };
 
+// Functions
+void move_pen(struct pen* pen, int x, int y, unsigned int width, unsigned int height);
+
 #endif

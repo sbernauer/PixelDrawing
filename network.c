@@ -188,6 +188,20 @@ static uint32_t net_str_to_uint32_16(struct ring* ring, ssize_t len) {
 	return val;
 }
 
+// TODO Maby read all (len) bytes from puffer, currentl only 1 - 2.
+// Didn't implement this for performance, and its the clients fault if it goes wrong,
+// normaly it would expect an space after this method, which then isn't the case so the command is aborted.
+static int net_str_to_1_0_minus1(struct ring* ring, ssize_t len) {
+	char c1 = ring_read_one(ring);
+
+	if(len == 1 && c1 == '1') {
+		return 1;
+	} else if (len == 2 && c1 == '-' && ring_read_one(ring) == '1') {
+		return -1;
+	}
+	return 0;
+}
+
 static ssize_t net_sock_printf(int socket, char* scratch_str, size_t scratch_len, char* fmt, ...) {
 	ssize_t ret;
 	size_t len;
@@ -322,76 +336,85 @@ recv:
 
 			if(!ring_memcmp(ring, "MOVE", strlen("MOVE"), NULL)) {
 				if((err = net_skip_whitespace(ring)) < 0) {
-					fprintf(stderr, "No whitespace after MOVE cmd\n");
+					// fprintf(stderr, "No whitespace after MOVE cmd\n");
 					goto recv_more;
 				}
 				if((offset = net_next_whitespace(ring)) < 0) {
-					fprintf(stderr, "No more whitespace found, missing id\n");
+					// fprintf(stderr, "No more whitespace found, missing id\n");
 					goto recv_more;
 				}
 				id = net_str_to_uint32_10(ring, offset);
 				if((err = net_skip_whitespace(ring)) < 0) {
-					fprintf(stderr, "No whitespace after id\n");
+					// fprintf(stderr, "No whitespace after id\n");
 					goto recv_more;
 				}
 				if((offset = net_next_whitespace(ring)) < 0) {
-					fprintf(stderr, "No more whitespace found, missing x coordinate\n");
+					// fprintf(stderr, "No more whitespace found, missing x coordinate\n");
 					goto recv_more;
 				}
-				x = net_str_to_uint32_10(ring, offset);
+				x = net_str_to_1_0_minus1(ring, offset);
 				if((err = net_skip_whitespace(ring)) < 0) {
-					fprintf(stderr, "No whitespace after x coordinate\n");
+					// fprintf(stderr, "No whitespace after x coordinate\n");
 					goto recv_more;
 				}
 				if((offset = net_next_whitespace(ring)) < 0) {
-					fprintf(stderr, "No more whitespace found, missing y coordinate\n");
+					// fprintf(stderr, "No more whitespace found, missing y coordinate\n");
 					goto recv_more;
 				}
-				y = net_str_to_uint32_10(ring, offset);
+				y = net_str_to_1_0_minus1(ring, offset);
 				if((err = net_skip_whitespace(ring)) < 0) {
-					fprintf(stderr, "No whitespace after y coordinate\n");
+					// fprintf(stderr, "No whitespace after y coordinate\n");
 					goto recv_more;
 				}
 				if((offset = net_next_whitespace(ring)) < 0) {
-					fprintf(stderr, "No more whitespace found, missing color\n");
+					// fprintf(stderr, "No more whitespace found, missing color\n");
 					goto recv_more;
 				}
 				pixel.abgr = net_str_to_uint32_16(ring, offset) << 8;
 				pixel.color.alpha = 0xFF;
-				fprintf(stderr, "Parsed color to %u\n", pixel.abgr);
 				if((err = net_skip_whitespace(ring)) < 0) {
-					fprintf(stderr, "No whitespace after id\n");
+					// fprintf(stderr, "No whitespace after id\n");
 					goto recv_more;
 				}
 				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
 					// Move pen with id to x and y
-					if((int)id < COUNT_PENS && (int)id > -1 && (int)x > -2 && (int)x < 2 && (int)y > -2 && (int)y < 2) {
-						fprintf(stderr, "Moving pen %u to %u, %u\n", id, x, y);
-						fprintf(stderr, "Set pixel %u, %uto %u", pens[id].x, pens[id].y, pixel.abgr);
+					if((int)id < COUNT_PENS) {
+						// fprintf(stdout, "Set pixel %u, %uto %u (x=%u, y=%u)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
 						fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
-						pens[id].x += x;
-						pens[id].y += y;
+						move_pen(&pens[id], x, y, fbsize->width, fbsize->height);
+
 						if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
 							id, pens[id].x, pens[id].y)) < 0) {
-							fprintf(stderr, "Failed to write out pen movement: %d => %s\n", err, strerror(-err));
+							// fprintf(stderr, "Failed to write out pen movement: %d => %s\n", err, strerror(-err));
 							goto fail_ring;
 						}
-					} else {
-						fprintf(stderr, "INVALID\n");
+					}
+				}
+			} else if(!ring_memcmp(ring, "PENS", strlen("PENS"), NULL)) {
+				if((err = net_skip_whitespace(ring)) < 0) {
+					// fprintf(stderr, "No whitespace after command PENS\n");
+					goto recv_more;
+				}
+				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
+					// Get count of pens
+					if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PENS %u\n",
+						COUNT_PENS)) < 0) {
+						// fprintf(stderr, "Failed to write out count of pens: %d => %s\n", err, strerror(-err));
+						goto fail_ring;
 					}
 				}
 			} else if(!ring_memcmp(ring, "PEN", strlen("PEN"), NULL)) {
 				if((err = net_skip_whitespace(ring)) < 0) {
-					fprintf(stderr, "No whitespace after PEN cmd\n");
+					// fprintf(stderr, "No whitespace after command PEN\n");
 					goto recv_more;
 				}
 				if((offset = net_next_whitespace(ring)) < 0) {
-					fprintf(stderr, "No more whitespace found, missing id\n");
+					// fprintf(stderr, "No more whitespace found, missing id\n");
 					goto recv_more;
 				}
 				id = net_str_to_uint32_10(ring, offset);
 				if((err = net_skip_whitespace(ring)) < 0) {
-					fprintf(stderr, "No whitespace after id\n");
+					// fprintf(stderr, "No whitespace after id\n");
 					goto recv_more;
 				}
 				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
@@ -399,32 +422,19 @@ recv:
 					if((int)id < COUNT_PENS && (int)id > -1) {
 						if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
 							id, pens[id].x, pens[id].y)) < 0) {
-							fprintf(stderr, "Failed to write out pen coordinate: %d => %s\n", err, strerror(-err));
+							// fprintf(stderr, "Failed to write out pen coordinate: %d => %s\n", err, strerror(-err));
 							goto fail_ring;
 						}
 					}
 				}
-			} else if(!ring_memcmp(ring, "PENS", strlen("PENS"), NULL)) {
-				if((err = net_skip_whitespace(ring)) < 0) {
-					fprintf(stderr, "No whitespace after command PENS\n");
-					goto recv_more;
-				}
-				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
-					// Get count of pens
-					if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PENS %u\n",
-						COUNT_PENS)) < 0) {
-						fprintf(stderr, "Failed to write out count of pens: %d => %s\n", err, strerror(-err));
-						goto fail_ring;
-					}
-				}
 			} else if(!ring_memcmp(ring, "SIZE", strlen("SIZE"), NULL)) {
 				if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "SIZE %u %u\n", fbsize->width, fbsize->height)) < 0) {
-					fprintf(stderr, "Failed to write out size: %d => %s\n", err, strerror(-err));
+					// fprintf(stderr, "Failed to write out size: %d => %s\n", err, strerror(-err));
 					goto fail_ring;
 				}
 			} else {
 				if((offset = net_next_whitespace(ring)) >= 0) {
-					printf("Encountered unknown command\n");
+					// printf("Encountered unknown command\n");
 					ring_advance_read(ring, offset);
 				} else {
 					if(offset == -EINVAL) {
