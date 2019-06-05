@@ -263,7 +263,7 @@ static void* net_connection_thread(void* args) {
 	struct fb* fb;
 	struct fb_size* fbsize;
 	union fb_pixel pixel;
-	unsigned int x, y, id;
+	int x, y, id;
 
 	off_t offset;
 	ssize_t read_len;
@@ -352,7 +352,7 @@ recv:
 					// fprintf(stderr, "No more whitespace found, missing x coordinate\n");
 					goto recv_more;
 				}
-				x = net_str_to_1_0_minus1(ring, offset);
+				x = (int)net_str_to_1_0_minus1(ring, offset);
 				if((err = net_skip_whitespace(ring)) < 0) {
 					// fprintf(stderr, "No whitespace after x coordinate\n");
 					goto recv_more;
@@ -361,7 +361,7 @@ recv:
 					// fprintf(stderr, "No more whitespace found, missing y coordinate\n");
 					goto recv_more;
 				}
-				y = net_str_to_1_0_minus1(ring, offset);
+				y = (int)net_str_to_1_0_minus1(ring, offset);
 				if((err = net_skip_whitespace(ring)) < 0) {
 					// fprintf(stderr, "No whitespace after y coordinate\n");
 					goto recv_more;
@@ -379,7 +379,7 @@ recv:
 				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
 					// Move pen with id to x and y
 					if((int)id < COUNT_PENS) {
-						// fprintf(stdout, "Set pixel %u, %uto %u (x=%u, y=%u)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
+						// fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
 						fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
 						move_pen(&pens[id], x, y, fbsize->width, fbsize->height);
 
