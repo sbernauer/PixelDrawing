@@ -263,7 +263,9 @@ static void* net_connection_thread(void* args) {
 	struct fb* fb;
 	struct fb_size* fbsize;
 	union fb_pixel pixel;
+
 	int x, y, id, returnRequest, sscanfBytesRead;
+	uint32_t color;
 
 	off_t offset;
 	ssize_t read_len;
@@ -335,12 +337,14 @@ recv:
 			last_cmd = ring->ptr_read;
 
 			// sscanf returns the amount of parsed fields. The option %n returns the count of characters read
-			if (sscanf(last_cmd, "MOVE %2u %2d %2d %06x %1d\n%n", &id, &x, &y, &pixel.abgr, &returnRequest, &sscanfBytesRead) == 5) {
-				printf("Parsed MOVE with id: %d x: %d y: %d color: %x return: %d bytes: %d\n", id, x, y, pixel.abgr, returnRequest, sscanfBytesRead);
+			if (sscanf(last_cmd, "MOVE %02u %02d %02d %06x %1d\n%n", &id, &x, &y, &color, &returnRequest, &sscanfBytesRead) == 5) {
+				// printf("Parsed MOVE with id: %d x: %d y: %d color: %x return: %d bytes: %d\n", id, x, y, color, returnRequest, sscanfBytesRead);
 				ring_advance_read(ring, sscanfBytesRead);
 				// Move pen with id to x and y
 				if((int)id < COUNT_PENS) {
-					fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
+					pixel.abgr = color << 8;
+					pixel.color.alpha = 0xFF;
+					// fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
 					fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
 					move_pen(&pens[id], x, y, fbsize->width, fbsize->height);
 
