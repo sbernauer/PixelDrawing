@@ -86,7 +86,7 @@ static void fb_set_size(struct fb* fb, unsigned int width, unsigned int height) 
 
 int fb_resize(struct fb* fb, unsigned int width, unsigned int height) {
 	int err = 0;
-	uint32_t* fbmem, *oldmem;
+	union fb_pixel* fbmem, *oldmem;
 	struct fb_size oldsize = *fb_get_size(fb);
 	size_t memsize = width * height * sizeof(uint32_t);
 	size_t oldmemsize = oldsize.width * oldsize.height * sizeof(uint32_t);
