@@ -262,7 +262,7 @@ static void* net_connection_thread(void* args) {
 	unsigned numa_node = get_numa_node();
 	struct fb* fb;
 	struct fb_size* fbsize;
-	uint32_t pixel;
+	union fb_pixel pixel;
 	int x, y, id, returnRequest;
 
 	off_t offset;
@@ -370,7 +370,7 @@ recv:
 					// fprintf(stderr, "No more whitespace found, missing color\n");
 					goto recv_more;
 				}
-				pixel = (net_str_to_uint32_16(ring, offset) << 8) | 0xff;
+				pixel.abgr = (net_str_to_uint32_16(ring, offset) << 8) | 0xff;
 				if((err = net_skip_whitespace(ring)) < 0) {
 					// fprintf(stderr, "No whitespace after color\n");
 					goto recv_more;

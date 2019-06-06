@@ -20,7 +20,7 @@ int fb_alloc(struct fb** framebuffer, unsigned int width, unsigned int height) {
 	fb->size.width = width;
 	fb->size.height = height;
 
-	fb->pixels = calloc(width * height, sizeof(uint32_t));
+	fb->pixels = calloc(width * height, sizeof(union fb_pixel));
 	if(!fb->pixels) {
 		err = -ENOMEM;
 		goto fail_fb;
@@ -62,8 +62,8 @@ void fb_free_all(struct llist* fbs) {
 	}
 }
 
-void fb_set_pixel(struct fb* fb, unsigned int x, unsigned int y, uint32_t* pixel) {
-	uint32_t* target;
+void fb_set_pixel(struct fb* fb, unsigned int x, unsigned int y, union fb_pixel* pixel) {
+	union fb_pixel* target;
 	assert(x < fb->size.width);
 	assert(y < fb->size.height);
 
@@ -72,7 +72,7 @@ void fb_set_pixel(struct fb* fb, unsigned int x, unsigned int y, uint32_t* pixel
 }
 
 // It might be a good idea to offer a variant returning a pointer to avoid unnecessary copies
-uint32_t fb_get_pixel(struct fb* fb, unsigned int x, unsigned int y) {
+union fb_pixel fb_get_pixel(struct fb* fb, unsigned int x, unsigned int y) {
 	assert(x < fb->size.width);
 	assert(y < fb->size.height);
 
@@ -88,8 +88,8 @@ int fb_resize(struct fb* fb, unsigned int width, unsigned int height) {
 	int err = 0;
 	union fb_pixel* fbmem, *oldmem;
 	struct fb_size oldsize = *fb_get_size(fb);
-	size_t memsize = width * height * sizeof(uint32_t);
-	size_t oldmemsize = oldsize.width * oldsize.height * sizeof(uint32_t);
+	size_t memsize = width * height * sizeof(union fb_pixel);
+	size_t oldmemsize = oldsize.width * oldsize.height * sizeof(union fb_pixel);
 	fbmem = malloc(memsize);
 	if(!fbmem) {
 		err = -ENOMEM;
