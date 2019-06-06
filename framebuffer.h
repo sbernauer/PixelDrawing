@@ -14,17 +14,6 @@ struct fb_size {
 
 // RGBA32
 union fb_pixel {
-	struct {
-		uint8_t alpha;
-		union {
-			struct {
-				uint8_t blue;
-				uint8_t green;
-				uint8_t red;
-			} color_bgr;
-			unsigned char bgr[3];
-		};
-	} color;
 	uint32_t abgr;
 };
 

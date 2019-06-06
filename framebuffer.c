@@ -71,17 +71,6 @@ void fb_set_pixel(struct fb* fb, unsigned int x, unsigned int y, union fb_pixel*
 	memcpy(target, pixel, sizeof(*pixel));
 }
 
-void fb_set_pixel_rgb(struct fb* fb, unsigned int x, unsigned int y, uint8_t red, uint8_t green, uint8_t blue) {
-	union fb_pixel* target;
-	assert(x < fb->size.width);
-	assert(y < fb->size.height);
-
-	target = &(fb->pixels[y * fb->size.width + x]);
-	target->color.color_bgr.red = red;
-	target->color.color_bgr.green = green;
-	target->color.color_bgr.blue = blue;
-}
-
 // It might be a good idea to offer a variant returning a pointer to avoid unnecessary copies
 union fb_pixel fb_get_pixel(struct fb* fb, unsigned int x, unsigned int y) {
 	assert(x < fb->size.width);
@@ -138,13 +127,7 @@ int fb_coalesce(struct fb* fb, struct llist* fbs) {
 			return -EINVAL;
 		}
 		for(j = 0; j < fb_size; j++) {
-			// This type of transparency handling is crap. We should do proper coalescing
-			if(other->pixels[j].color.alpha == 0) {
-				continue;
-			}
 			fb->pixels[j] = other->pixels[j];
-			// Reset to fully transparent
-			other->pixels[j].color.alpha = 0;
 		}
 	}
 	return 0;

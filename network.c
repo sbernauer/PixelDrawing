@@ -370,8 +370,7 @@ recv:
 					// fprintf(stderr, "No more whitespace found, missing color\n");
 					goto recv_more;
 				}
-				pixel.abgr = net_str_to_uint32_16(ring, offset) << 8;
-				pixel.color.alpha = 0xFF;
+				pixel.abgr = (net_str_to_uint32_16(ring, offset) << 8) | 0xff;
 				if((err = net_skip_whitespace(ring)) < 0) {
 					// fprintf(stderr, "No whitespace after color\n");
 					goto recv_more;
