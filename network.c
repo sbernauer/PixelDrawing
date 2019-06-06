@@ -263,7 +263,7 @@ static void* net_connection_thread(void* args) {
 	struct fb* fb;
 	struct fb_size* fbsize;
 	union fb_pixel pixel;
-	int x, y, id, returnRequest;
+	int x, y, id, returnRequest, sscanfBytesRead;
 
 	off_t offset;
 	ssize_t read_len;
@@ -334,69 +334,20 @@ recv:
 		while(ring_any_available(ring)) {
 			last_cmd = ring->ptr_read;
 
-			if(!ring_memcmp(ring, "MOVE", strlen("MOVE"), NULL)) {
-				if((err = net_skip_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No whitespace after MOVE cmd\n");
-					goto recv_more;
-				}
-				if((offset = net_next_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No more whitespace found, missing id\n");
-					goto recv_more;
-				}
-				id = net_str_to_uint32_10(ring, offset);
-				if((err = net_skip_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No whitespace after id\n");
-					goto recv_more;
-				}
-				if((offset = net_next_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No more whitespace found, missing x coordinate\n");
-					goto recv_more;
-				}
-				x = (int)net_str_to_1_0_minus1(ring, offset);
-				if((err = net_skip_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No whitespace after x coordinate\n");
-					goto recv_more;
-				}
-				if((offset = net_next_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No more whitespace found, missing y coordinate\n");
-					goto recv_more;
-				}
-				y = (int)net_str_to_1_0_minus1(ring, offset);
-				if((err = net_skip_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No whitespace after y coordinate\n");
-					goto recv_more;
-				}
-				if((offset = net_next_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No more whitespace found, missing color\n");
-					goto recv_more;
-				}
-				pixel.abgr = net_str_to_uint32_16(ring, offset) << 8;
-				pixel.color.alpha = 0xFF;
-				if((err = net_skip_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No whitespace after color\n");
-					goto recv_more;
-				}
-				if((offset = net_next_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No more whitespace found, missing return request\n");
-					goto recv_more;
-				}
-				returnRequest = (int)net_str_to_1_0_minus1(ring, offset);
-				if((err = net_skip_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No whitespace after return request\n");
-					goto recv_more;
-				}
-				if(net_is_newline(ring_peek_prev(ring))) {
-					// Move pen with id to x and y
-					if((int)id < COUNT_PENS) {
-						// fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
-						fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
-						move_pen(&pens[id], x, y, fbsize->width, fbsize->height);
+			// sscanf returns the amount of parsed fields. The option %n returns the count of characters read
+			if (sscanf(last_cmd, "MOVE %2u %2d %2d %06x %1d\n%n", &id, &x, &y, &pixel.abgr, &returnRequest, &sscanfBytesRead) == 5) {
+				printf("Parsed MOVE with id: %d x: %d y: %d color: %x return: %d bytes: %d\n", id, x, y, pixel.abgr, returnRequest, sscanfBytesRead);
+				ring_advance_read(ring, sscanfBytesRead);
+				// Move pen with id to x and y
+				if((int)id < COUNT_PENS) {
+					fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
+					fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
+					move_pen(&pens[id], x, y, fbsize->width, fbsize->height);
 
-						if(returnRequest == 1 && (err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
-							id, pens[id].x, pens[id].y)) < 0) {
-							// fprintf(stderr, "Failed to write out pen movement: %d => %s\n", err, strerror(-err));
-							goto fail_ring;
-						}
+					if(returnRequest == 1 && (err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
+						id, pens[id].x, pens[id].y)) < 0) {
+						// fprintf(stderr, "Failed to write out pen movement: %d => %s\n", err, strerror(-err));
+						goto fail_ring;
 					}
 				}
 			} else if(!ring_memcmp(ring, "PENS", strlen("PENS"), NULL)) {
