@@ -263,7 +263,7 @@ static void* net_connection_thread(void* args) {
 	struct fb* fb;
 	struct fb_size* fbsize;
 	union fb_pixel pixel;
-	int x, y, id;
+	int x, y, id, returnRequest;
 
 	off_t offset;
 	ssize_t read_len;
@@ -373,17 +373,26 @@ recv:
 				pixel.abgr = net_str_to_uint32_16(ring, offset) << 8;
 				pixel.color.alpha = 0xFF;
 				if((err = net_skip_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No whitespace after id\n");
+					// fprintf(stderr, "No whitespace after color\n");
 					goto recv_more;
 				}
-				if(unlikely(net_is_newline(ring_peek_prev(ring)))) {
+				if((offset = net_next_whitespace(ring)) < 0) {
+					// fprintf(stderr, "No more whitespace found, missing return request\n");
+					goto recv_more;
+				}
+				returnRequest = (int)net_str_to_1_0_minus1(ring, offset);
+				if((err = net_skip_whitespace(ring)) < 0) {
+					// fprintf(stderr, "No whitespace after return request\n");
+					goto recv_more;
+				}
+				if(net_is_newline(ring_peek_prev(ring))) {
 					// Move pen with id to x and y
 					if((int)id < COUNT_PENS) {
 						// fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
 						fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
 						move_pen(&pens[id], x, y, fbsize->width, fbsize->height);
 
-						if((err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
+						if(returnRequest == 1 && (err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
 							id, pens[id].x, pens[id].y)) < 0) {
 							// fprintf(stderr, "Failed to write out pen movement: %d => %s\n", err, strerror(-err));
 							goto fail_ring;
