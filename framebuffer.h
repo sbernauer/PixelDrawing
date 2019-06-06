@@ -12,14 +12,9 @@ struct fb_size {
 	unsigned int height;
 };
 
-// RGBA32
-union fb_pixel {
-	uint32_t abgr;
-};
-
 struct fb {
 	struct fb_size size;
-	union fb_pixel* pixels;
+	uint32_t* pixels;
 	unsigned numa_node;
 	struct llist_entry list;
 };
@@ -32,9 +27,9 @@ void fb_free_all(struct llist* fbs);
 struct fb* fb_get_fb_on_node(struct llist* fbs, unsigned numa_node);
 
 // Manipulation
-void fb_set_pixel(struct fb* fb, unsigned int x, unsigned int y, union fb_pixel* pixel);
+void fb_set_pixel(struct fb* fb, unsigned int x, unsigned int y, uint32_t* pixel);
 void fb_set_pixel_rgb(struct fb* fb, unsigned int x, unsigned int y, uint8_t red, uint8_t green, uint8_t blue);
-union fb_pixel fb_get_pixel(struct fb* fb, unsigned int x, unsigned int y);
+uint32_t fb_get_pixel(struct fb* fb, unsigned int x, unsigned int y);
 int fb_resize(struct fb* fb, unsigned int width, unsigned int height);
 int fb_coalesce(struct fb* fb, struct llist* fbs);
 
