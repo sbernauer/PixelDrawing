@@ -137,7 +137,7 @@ int ring_write(struct ring* ring, char* data, size_t len) {
 	return 0;
 }
 
-void ring_advance_read(struct ring* ring, off_t offset) {
+int ring_advance_read(struct ring* ring, off_t offset) {
 	assert(offset >= 0);
 	assert(offset <= ring->size);
 
@@ -148,6 +148,7 @@ void ring_advance_read(struct ring* ring, off_t offset) {
 			ring->ptr_read = offset - ring->size + ring->ptr_read;
 		}
 	}
+	return offset;
 }
 
 void ring_advance_write(struct ring* ring, off_t offset) {

@@ -21,7 +21,7 @@ size_t ring_free_space_contig(struct ring* ring);
 int ring_peek(struct ring* ring, char* data, size_t len);
 int ring_read(struct ring* ring, char* data, size_t len);
 int ring_write(struct ring* ring, char* data, size_t len);
-void ring_advance_read(struct ring* ring, off_t offset);
+int ring_advance_read(struct ring* ring, off_t offset);
 void ring_advance_write(struct ring* ring, off_t offset);
 
 // Special zero-copy optimizations

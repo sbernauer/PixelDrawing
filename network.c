@@ -334,11 +334,12 @@ recv:
 		while(ring_any_available(ring)) {
 			last_cmd = ring->ptr_read;
 
-			if(!ring_memcmp(ring, "MOVE", strlen("MOVE"), NULL)) {
-				if((err = net_skip_whitespace(ring)) < 0) {
-					// fprintf(stderr, "No whitespace after MOVE cmd\n");
-					goto recv_more;
-				}
+			if((ring_available_contig(ring) > 4 && *last_cmd == 'M' && *(last_cmd + 1) == 'O' && *(last_cmd + 2) == 'V' && *(last_cmd + 3) == 'E' && *(last_cmd + 4) == ' ' && ring_advance_read(ring, 5))
+				|| (!ring_memcmp(ring, "MOVE ", strlen("MOVE "), NULL))) {
+				// if((err = net_skip_whitespace(ring)) < 0) {
+				// 	// fprintf(stderr, "No whitespace after MOVE cmd\n");
+				// 	goto recv_more;
+				// }
 				if((offset = net_next_whitespace(ring)) < 0) {
 					// fprintf(stderr, "No more whitespace found, missing id\n");
 					goto recv_more;
