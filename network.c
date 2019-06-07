@@ -291,18 +291,22 @@ static void* net_connection_thread(void* args) {
 		}
 	}
 
-	pthread_mutex_lock(&net->fb_lock);
-	fb = fb_get_fb_on_node(net->fb_list, numa_node);
-	if(!fb) {
-		printf("Failed to find fb on NUMA node %u, creating new fb\n", numa_node);
-		if(fb_alloc(&fb, net->fb_size->width, net->fb_size->height)) {
-			fprintf(stderr, "Failed to allocate fb on node\n");
-			goto fail;
+	if(USE_NUMA) {
+		pthread_mutex_lock(&net->fb_lock);
+		fb = fb_get_fb_on_node(net->fb_list, numa_node);
+		if(!fb) {
+			printf("Failed to find fb on NUMA node %u, creating new fb\n", numa_node);
+			if(fb_alloc(&fb, net->fb_size->width, net->fb_size->height)) {
+				fprintf(stderr, "Failed to allocate fb on node\n");
+				goto fail;
+			}
+			printf("Allocated fb on NUMA node %u\n", fb->numa_node);
+			llist_append(net->fb_list, &fb->list);
 		}
-		printf("Allocated fb on NUMA node %u\n", fb->numa_node);
-		llist_append(net->fb_list, &fb->list);
+		pthread_mutex_unlock(&net->fb_lock);
+	} else {
+		fb = net->fb; // Driectly operate on the only framebuffer existing
 	}
-	pthread_mutex_unlock(&net->fb_lock);
 
 	fbsize = fb_get_size(fb);
 

@@ -5,6 +5,8 @@
 
 #include "util.h"
 
+#define USE_NUMA true // (See with numactl --hardware)
+
 struct llist_entry;
 
 struct llist {

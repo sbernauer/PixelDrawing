@@ -342,9 +342,11 @@ int main(int argc, char** argv) {
 	clock_gettime(CLOCK_MONOTONIC, &fpsSnapshot);
 	while(!do_exit) {
 		clock_gettime(CLOCK_MONOTONIC, &before);
-		llist_lock(&fb_list);
-		fb_coalesce(fb, &fb_list);
-		llist_unlock(&fb_list);
+		if (USE_NUMA) {
+			llist_lock(&fb_list);
+			fb_coalesce(fb, &fb_list);
+			llist_unlock(&fb_list);
+		}
 		llist_for_each(&fronts, cursor) {
 			front = llist_entry_get_value(cursor, struct frontend, list);
 			if(frontend_can_draw_string(front)) {
