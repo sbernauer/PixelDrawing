@@ -390,7 +390,17 @@ recv:
 					if((int)id < COUNT_PENS) {
 						// fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
 						fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
-						move_pen(&pens[id], x, y, fbsize->width, fbsize->height);
+
+						if (x == 1 && pens[id].x < fbsize->width - 1) {
+							pens[id].x++;
+						} else if (x == -1 && pens[id].x > 0) {
+							pens[id].x--;
+						}
+						if (y == 1 && pens[id].y < fbsize->height - 1) {
+							pens[id].y++;
+						} else if (y == -1 && pens[id].y > 0) {
+							pens[id].y--;
+						}
 
 						if(returnRequest == 1 && (err = net_sock_printf(socket, scratch_str, sizeof(scratch_str), "PEN %u %u %u\n",
 							id, pens[id].x, pens[id].y)) < 0) {
