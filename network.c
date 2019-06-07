@@ -188,6 +188,22 @@ static uint32_t net_str_to_uint32_16(struct ring* ring, ssize_t len) {
 	return val;
 }
 
+static uint32_t my_net_str_to_uint32_16(char* dataPointer, ssize_t len) {
+	uint32_t val = 0;
+	int radix, lower;
+	for(radix = 0; radix < 6; radix++) {
+		// Could be replaced by a left shift
+		val *= 16;
+		lower = tolower(*(dataPointer + radix));
+		if(lower >= 'a') {
+			val += lower - 'a' + 10;
+		} else {
+			val += lower - '0';
+		}
+	}
+	return val << 8;
+}
+
 // TODO Maby read all (len) bytes from puffer, currentl only 1 - 2.
 // Didn't implement this for performance, and its the clients fault if it goes wrong,
 // normaly it would expect an space after this method, which then isn't the case so the command is aborted.
@@ -328,8 +344,51 @@ recv:
 			}
 			goto fail_ring;
 		}
-//		printf("Read %zd bytes\n", read_len);
+
+		printf("Looping %d bytes\n", read_len);
+		ssize_t consumeCounter = 0;
+		for(int i = 0; i < (read_len - 20); i++) {
+			// "MOVE <id> <x> <y> <ycolor> <returnRequest>\n" ==>> "4 1 1 1 6 1\n" ==>> 14 + 5 spaces  + 1 Newline ==>> 20 characters/bytes
+			if(*(ring->ptr_write + i) == 'M' && *(ring->ptr_write + i + 1) == 'O' && *(ring->ptr_write + i + 2) == 'V' && *(ring->ptr_write + i + 3) == 'E' && *(ring->ptr_write + i + 4) == ' '
+				&& *(ring->ptr_write + i + 5) >= '0' && *(ring->ptr_write + i + 5) <= 'f' && *(ring->ptr_write + i + 6) == ' ' // TODO: Mabye replace >= and <= with bitwise AND/OR
+				&& *(ring->ptr_write + i + 7) >= '0' && *(ring->ptr_write + i + 7) <= '2' && *(ring->ptr_write + i + 8) == ' '
+				&& *(ring->ptr_write + i + 9) >= '0' && *(ring->ptr_write + i + 9) <= '2' && *(ring->ptr_write + i + 10) == ' '
+				// Wrong color is not my problem :)
+				&& *(ring->ptr_write + i + 17) == ' '
+				&& *(ring->ptr_write + i + 18) >= '0' && *(ring->ptr_write + i + 18) <= '1' // TODO Definitly replace >= and <= with bitwise AND/OR
+				&& *(ring->ptr_write + i + 19) == '\n') {
+
+					id = *(ring->ptr_write + i + 5) - '0';
+					x = *(ring->ptr_write + i + 7) - '0';
+					y = *(ring->ptr_write + i + 9) - '0';
+					pixel.abgr = my_net_str_to_uint32_16(ring->ptr_write + i + 11, 6);
+					returnRequest = *(ring->ptr_write + i + 18) - '0';
+
+					fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
+
+					if (x == 1 && pens[id].x < fbsize->width - 1) {
+						pens[id].x++;
+					} else if (x == 2 && pens[id].x > 0) {
+						pens[id].x--;
+					}
+					if (y == 1 && pens[id].y < fbsize->height - 1) {
+						pens[id].y++;
+					} else if (y == 2 && pens[id].y > 0) {
+						pens[id].y--;
+					}
+
+					// printf("Detected MOVE with 20 bytes (including newline) id. %d x: %d y: %d\n", id, x, y);
+					// Strangely, this decreases performance. Mabye some crazy loop optimization
+					i += 19; // 1 less, because loop also increments
+					consumeCounter += 19;
+			}
+			else {
+				printf("Missed byte: %c\n", *(ring->ptr_write + i));
+			}
+		}
 		ring_advance_write(ring, read_len);
+		ring->ptr_read += consumeCounter;
+//		printf("Read %zd bytes\n", read_len);
 
 		while(ring_any_available(ring)) {
 			last_cmd = ring->ptr_read;
