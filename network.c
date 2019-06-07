@@ -191,12 +191,12 @@ static uint32_t net_str_to_uint32_16(struct ring* ring, ssize_t len) {
 // TODO Maby read all (len) bytes from puffer, currentl only 1 - 2.
 // Didn't implement this for performance, and its the clients fault if it goes wrong,
 // normaly it would expect an space after this method, which then isn't the case so the command is aborted.
-static int net_str_to_1_0_minus1(struct ring* ring, ssize_t len) {
+static int net_str_to_1_0_minus1(struct ring* ring) {
 	char c1 = ring_read_one(ring);
 
-	if(len == 1 && c1 == '1') {
+	if(c1 == '1') {
 		return 1;
-	} else if (len == 2 && c1 == '-' && ring_read_one(ring) == '1') {
+	} else if (c1 == '-' && ring_read_one(ring) == '1') {
 		return -1;
 	}
 	return 0;
@@ -353,7 +353,7 @@ recv:
 					// fprintf(stderr, "No more whitespace found, missing x coordinate\n");
 					goto recv_more;
 				}
-				x = (int)net_str_to_1_0_minus1(ring, offset);
+				x = net_str_to_1_0_minus1(ring);
 				if((err = net_skip_whitespace(ring)) < 0) {
 					// fprintf(stderr, "No whitespace after x coordinate\n");
 					goto recv_more;
@@ -362,7 +362,7 @@ recv:
 					// fprintf(stderr, "No more whitespace found, missing y coordinate\n");
 					goto recv_more;
 				}
-				y = (int)net_str_to_1_0_minus1(ring, offset);
+				y = net_str_to_1_0_minus1(ring);
 				if((err = net_skip_whitespace(ring)) < 0) {
 					// fprintf(stderr, "No whitespace after y coordinate\n");
 					goto recv_more;
@@ -380,7 +380,7 @@ recv:
 					// fprintf(stderr, "No more whitespace found, missing return request\n");
 					goto recv_more;
 				}
-				returnRequest = (int)net_str_to_1_0_minus1(ring, offset);
+				returnRequest = net_str_to_1_0_minus1(ring);
 				if((err = net_skip_whitespace(ring)) < 0) {
 					// fprintf(stderr, "No whitespace after return request\n");
 					goto recv_more;
