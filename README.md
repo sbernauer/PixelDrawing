@@ -13,12 +13,12 @@ If a pen reaches the end of the screen it won't get any further.
 # API
 All numbers are integers, no floating points.
 
-Request                       | Respone                 | Desciption
------------------------------ | ----------------------- | -----------------------------------------------------------------------------------------
-`SIZE`                        | `<width>x<height>`      | Returns the size of the screen
-`PENS`                        | `<number of pens>`      | Returns the numbers of pens on the screen, in this example 5
-`PEN <id>`                    | `<x> <y>`               | Returns the coordinates of the regested pen.
-`MOVE <id> <x> <y> <color>`   | `PEN <id> <x> <y>`      | Moves the specified pen. More details below.
+Request                                  | Respone                        | Desciption
+---------------------------------------- | ------------------------------ | -----------------------------------------------------------------------------------------
+`SIZE`                                   | `<width>x<height>`             | Returns the size of the screen
+`PENS`                                   | `<number of pens>`             | Returns the numbers of pens on the screen, in this example 5
+`PEN <id>`                               | `<x> <y>`                      | Returns the coordinates of the regested pen.
+`MOVE <id> <x> <y> <color> <feedback>`   | `[PEN <id> <x> <y>]`           | Moves the specified pen. If the flag `feedback` is set to 1, the resposnse will be the new coordinates of the pen. If the flag is 0, there will be no response.
 
 
 The MOVE command: Accepts the id of the pen and the amount of pixels to move the pen in x and y-achsis. `-1 <= x <= 1 and -1 <= y <= 1` to prevent to fast movements. The color must be given in hexadecimal `rrggbb`. It returns the id and the new position of the pen. This prevents an subsequent call, because it isn't clear if the pen was moved in an other direction at the same time. Also the id is given for the case that you do movements of different pens simultaniously. Example: `MOVE 0 1 0 ff0000` to move the first pen one pixel to the right and paints a red line.
