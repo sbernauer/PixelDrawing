@@ -345,10 +345,10 @@ recv:
 			goto fail_ring;
 		}
 
-		printf("Looping %d bytes\n", read_len);
+		printf("Looping %ld bytes\n", read_len);
 		ssize_t consumeCounter = 0;
 		for(int i = 0; i < (read_len - 20); i++) {
-			// "MOVE <id> <x> <y> <ycolor> <returnRequest>\n" ==>> "4 1 1 1 6 1\n" ==>> 14 + 5 spaces  + 1 Newline ==>> 20 characters/bytes
+			// "MOVE <id> <x> <y> <ycolor> <returnRequest>\n" ==>> "4 1 1 1 6 1\n" ==>> 14 + 5 spaces + 1 Newline ==>> 20 characters/bytes
 			if(*(ring->ptr_write + i) == 'M' && *(ring->ptr_write + i + 1) == 'O' && *(ring->ptr_write + i + 2) == 'V' && *(ring->ptr_write + i + 3) == 'E' && *(ring->ptr_write + i + 4) == ' '
 				&& *(ring->ptr_write + i + 5) >= '0' && *(ring->ptr_write + i + 5) <= 'f' && *(ring->ptr_write + i + 6) == ' ' // TODO: Mabye replace >= and <= with bitwise AND/OR
 				&& *(ring->ptr_write + i + 7) >= '0' && *(ring->ptr_write + i + 7) <= '2' && *(ring->ptr_write + i + 8) == ' '
@@ -365,6 +365,7 @@ recv:
 					returnRequest = *(ring->ptr_write + i + 18) - '0';
 
 					fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
+					fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
 
 					if (x == 1 && pens[id].x < fbsize->width - 1) {
 						pens[id].x++;
@@ -380,14 +381,16 @@ recv:
 					// printf("Detected MOVE with 20 bytes (including newline) id. %d x: %d y: %d\n", id, x, y);
 					// Strangely, this decreases performance. Mabye some crazy loop optimization
 					i += 19; // 1 less, because loop also increments
-					consumeCounter += 19;
+					consumeCounter += 20; // Not 1 less, because is not incremented in loop
 			}
 			else {
 				printf("Missed byte: %c\n", *(ring->ptr_write + i));
 			}
 		}
 		ring_advance_write(ring, read_len);
-		ring->ptr_read += consumeCounter;
+		printf("Advancing write %ld bytes\n", read_len);
+		ring_advance_read(ring, consumeCounter);
+		printf("Advancing read %ld bytes\n", consumeCounter);
 //		printf("Read %zd bytes\n", read_len);
 
 		while(ring_any_available(ring)) {
@@ -395,6 +398,7 @@ recv:
 
 			if((ring_available_contig(ring) > 4 && *last_cmd == 'M' && *(last_cmd + 1) == 'O' && *(last_cmd + 2) == 'V' && *(last_cmd + 3) == 'E' && *(last_cmd + 4) == ' ' && ring_advance_read(ring, 5))
 				|| (!ring_memcmp(ring, "MOVE ", strlen("MOVE "), NULL))) {
+				fprintf(stdout, "Run into STRCMP\n");
 				// if((err = net_skip_whitespace(ring)) < 0) {
 				// 	// fprintf(stderr, "No whitespace after MOVE cmd\n");
 				// 	goto recv_more;
@@ -447,7 +451,7 @@ recv:
 				if(net_is_newline(ring_peek_prev(ring))) {
 					// Move pen with id to x and y
 					if((int)id < COUNT_PENS) {
-						// fprintf(stdout, "Set pixel %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
+						fprintf(stdout, "Set pixel FROM STRCMP!!! %d, %d to %08x (x=%d, y=%d)\n", pens[id].x, pens[id].y, pixel.abgr, x, y);
 						fb_set_pixel(fb, pens[id].x, pens[id].y, &pixel);
 
 						if (x == 1 && pens[id].x < fbsize->width - 1) {
